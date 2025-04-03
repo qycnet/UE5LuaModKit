@@ -58,6 +58,6 @@
 
 - 官方论坛：[论坛链接]
 - Discord：[Discord 邀请链接]
-- 电子邮件：support@example.com
+- 电子邮件：tian@apiqy.cn
 
 感谢您对我们游戏 MOD 开发的关注！祝您开发愉快！
