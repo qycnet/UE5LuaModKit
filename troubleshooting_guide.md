@@ -1,239 +1,461 @@
 # UE5LuaModKit 故障排除指南
 
-本指南旨在帮助开发者解决在使用 UE5LuaModKit 进行 MOD 开发时可能遇到的常见问题。
+本指南提供了在使用 UE5LuaModKit 开发 MOD 时可能遇到的常见问题及其解决方案。
 
 ## 目录
 
-1. [Lua 脚本加载问题](#lua-脚本加载问题)
-2. [游戏崩溃问题](#游戏崩溃问题)
-3. [性能问题](#性能问题)
-4. [网络同步问题](#网络同步问题)
-5. [UI 相关问题](#ui-相关问题)
-6. [资源加载问题](#资源加载问题)
-7. [与其他 MOD 的兼容性问题](#与其他-mod-的兼容性问题)
-
-## Lua 脚本加载问题
-
-### 问题：Lua 脚本无法加载
-
-**症状**：游戏启动时没有加载 Lua MOD，或者控制台报错显示无法找到 Lua 文件。
-
-**可能的原因和解决方案**：
-
-1. **文件路径错误**
-   - 确保 Lua 文件放在正确的目录中（通常是 `Game/Mods/YourModName/`）。
-   - 检查文件名是否正确，注意大小写。
-
-2. **文件编码问题**
-   - 确保 Lua 文件使用 UTF-8 编码保存。
-   - 在某些文本编辑器中，可以通过"另存为"并选择 UTF-8 编码来解决这个问题。
-
-3. **Lua 语法错误**
-   - 使用 Lua 解释器预先检查脚本是否存在语法错误。
-   - 可以使用在线 Lua 检查工具或本地 Lua 环境进行测试。
-
-4. **MOD 配置文件问题**
-   - 检查 `mod.json` 或类似的配置文件，确保其中的信息正确，特别是主 Lua 文件的路径。
-
-### 问题：Lua 函数无法调用
-
-**症状**：Lua 脚本已加载，但某些函数无法调用，控制台可能报错 "attempt to call a nil value"。
-
-**可能的原因和解决方案**：
-
-1. **函数名拼写错误**
-   - 仔细检查函数名的拼写，Lua 是大小写敏感的。
-
-2. **函数未定义或未正确导出**
-   - 确保函数在正确的作用域内定义，并且已经正确导出（如果是模块内的函数）。
-
-3. **依赖模块未加载**
-   - 如果函数依赖于其他模块，确保这些模块已经正确加载。
-
-4. **API 版本不匹配**
-   - 确认您使用的 API 函数与当前 UE5LuaModKit 版本兼容。
-
-## 游戏崩溃问题
-
-### 问题：MOD 导致游戏崩溃
-
-**症状**：启用 MOD 后，游戏在某些操作后突然关闭或冻结。
-
-**可能的原因和解决方案**：
-
-1. **空指针访问**
-   - 在访问游戏对象前总是检查其是否为 nil。
-   ```lua
-   if someObject ~= nil then
-       someObject:DoSomething()
-   end
-   ```
-
-2. **无限循环**
-   - 检查所有循环，确保有正确的退出条件。
-   - 使用 `debug.sethook` 设置一个定时器来检测长时间运行的代码。
-
-3. **内存泄漏**
-   - 避免在不需要时持有大量数据。
-   - 及时清理不再使用的大型表或对象。
-
-4. **异步操作问题**
-   - 确保所有异步操作（如协程）都有适当的错误处理。
-   - 避免在关键帧更新函数中执行耗时操作。
-
-5. **与引擎 API 的不当交互**
-   - 仔细阅读 API 文档，确保正确使用所有 UE5 API。
-   - 避免在不适当的时机（如渲染循环中）调用某些 API。
-
-## 性能问题
-
-### 问题：MOD 导致游戏卡顿
-
-**症状**：启用 MOD 后，游戏帧率明显下降或出现卡顿。
-
-**可能的原因和解决方案**：
-
-1. **过多的每帧更新**
-   - 减少在 Update 函数中执行的操作。
-   - 考虑使用计时器或事件驱动的方式代替持续的轮询。
-
-2. **大量的字符串操作**
-   - 避免在频繁调用的函数中进行字符串连接。
-   - 使用表和 `table.concat` 来优化字符串操作。
-
-3. **频繁的表创建和销毁**
-   - 重用表而不是频繁创建新表。
-   - 考虑使用对象池模式来管理频繁创建和销毁的对象。
-
-4. **复杂的计算**
-   - 将复杂计算的结果缓存起来，而不是每次都重新计算。
-   - 考虑将部分计算放入协程中异步处理。
-
-5. **过多的垃圾收集**
-   - 减少临时对象的创建。
-   - 在适当的时机手动调用垃圾收集（`collectgarbage()`）。
-
-## 网络同步问题
-
-### 问题：多人游戏中 MOD 行为不一致
-
-**症状**：在多人游戏中，不同玩家看到的 MOD 效果不一样。
-
-**可能的原因和解决方案**：
-
-1. **随机数生成不同步**
-   - 使用服务器提供的种子来初始化随机数生成器。
-   - 对于需要在所有客户端保持一致的随机事件，在服务器端生成并同步到客户端。
-
-2. **时间同步问题**
-   - 使用服务器时间而不是本地时间来处理时间相关的逻辑。
-   - 实现时间同步机制，定期与服务器校准时间。
-
-3. **状态同步不完整**
-   - 确保所有关键游戏状态都通过网络正确同步。
-   - 实现一个周期性的完整状态同步，以修正可能的不一致。
-
-4. **网络延迟处理不当**
-   - 实现预测和回滚机制来处理网络延迟。
-   - 使用插值技术使移动看起来更平滑。
-
-5. **权限控制问题**
-   - 明确区分客户端和服务器的职责。
-   - 对于关键操作，始终在服务器端进行验证。
-
-## UI 相关问题
-
-### 问题：自定义 UI 显示异常
-
-**症状**：MOD 添加的 UI 元素位置错误、大小不对或者完全不显示。
-
-**可能的原因和解决方案**：
-
-1. **分辨率和缩放问题**
-   - 使用相对位置和大小而不是绝对像素值。
-   - 实现一个响应式布局系统，能够适应不同的屏幕大小。
-
-2. **Z-顺序问题**
-   - 检查 UI 元素的渲染顺序，确保重要的元素不被其他元素遮挡。
-   - 使用适当的 Z-index 值来控制 UI 层级。
-
-3. **资源加载失败**
-   - 确保所有 UI 资源（如图片、字体）都正确打包并加载。
-   - 实现错误处理机制，在资源加载失败时使用默认资源。
-
-4. **与游戏内置 UI 的冲突**
-   - 了解游戏原有的 UI 系统，避免直接覆盖或干扰关键 UI 元素。
-   - 考虑使用游戏提供的 UI 扩展机制，而不是完全自定义 UI。
-
-5. **性能问题导致的 UI 卡顿**
-   - 减少 UI 更新频率，特别是对于复杂的 UI 元素。
-   - 使用 UI 对象池来重用 UI 元素，而不是频繁创建和销毁。
-
-## 资源加载问题
-
-### 问题：MOD 资源无法正确加载
-
-**症状**：MOD 中的自定义模型、纹理或音频无法在游戏中显示或播放。
-
-**可能的原因和解决方案**：
-
-1. **资源路径错误**
-   - 仔细检查资源文件的路径，确保与代码中的引用一致。
-   - 使用相对路径而不是绝对路径来引用资源。
-
-2. **资源格式不兼容**
-   - 确保资源文件格式与游戏引擎兼容。
-   - 对于特殊格式，可能需要先转换为引擎支持的格式。
-
-3. **资源未正确打包**
-   - 检查 MOD 打包过程，确保所有必要的资源文件都被包含。
-   - 使用 UE5 的资源打包工具来正确处理资源依赖。
-
-4. **资源加载时机不当**
-   - 确保在适当的游戏生命周期阶段加载资源（如游戏启动时或进入特定关卡时）。
-   - 对于大型资源，考虑实现异步加载机制。
-
-5. **内存限制**
-   - 注意资源的内存占用，避免一次性加载过多大型资源。
-   - 实现资源的动态加载和卸载机制，以管理内存使用。
-
-## 与其他 MOD 的兼容性问题
-
-### 问题：多个 MOD 同时启用时出现冲突
-
-**症状**：单独使用 MOD 时一切正常，但与其他 MOD 一起使用时出现问题。
-
-**可能的原因和解决方案**：
-
-1. **全局变量冲突**
-   - 避免使用全局变量，改用模块化的方法组织代码。
-   - 为 MOD 专属的全局变量添加唯一前缀。
-
-2. **函数重写冲突**
-   - 在重写游戏函数时，保存并调用原始函数，以保持其他 MOD 的功能。
-   ```lua
-   local originalFunction = SomeGameFunction
-   SomeGameFunction = function(...)
-       -- 自定义逻辑
-       return originalFunction(...)
-   end
-   ```
-
-3. **资源命名冲突**
-   - 为 MOD 的资源使用唯一的命名约定，例如添加 MOD 名称作为前缀。
-
-4. **事件监听冲突**
-   - 在添加事件监听器时要小心，确保不会意外移除其他 MOD 的监听器。
-   - 考虑实现一个事件管理系统，允许多个 MOD 监听同一事件。
-
-5. **加载顺序问题**
-   - 实现 MOD 加载优先级系统，允许指定 MOD 的加载顺序。
-   - 在 MOD 中实现依赖检查，确保必要的其他 MOD 已经加载。
-
-6. **性能叠加问题**
-   - 优化每个 MOD 的性能，特别是在频繁执行的函数中。
-   - 考虑实现一个性能监控系统，帮助识别哪个 MOD 可能导致性能问题。
-
-记住，良好的 MOD 设计应该考虑到与其他 MOD 的兼容性。通过遵循模块化设计、避免全局污染、实现优雅的钩子系统等最佳实践，可以大大提高 MOD 的兼容性。
-
-如果您遇到本指南中未涵盖的问题，请查看我们的官方论坛或联系支持团队获取进一步的帮助。我们也鼓励社区成员分享他们的经验和解决方案，以不断完善这个故障排除指南。
+1. [常见错误和解决方案](#常见错误和解决方案)
+2. [性能问题诊断](#性能问题诊断)
+3. [内存相关问题](#内存相关问题)
+4. [调试技巧](#调试技巧)
+5. [环境问题](#环境问题)
+6. [常见问题解答（FAQ）](#常见问题解答)
+
+## 常见错误和解决方案
+
+### 1. Lua 脚本加载错误
+
+#### 症状
+- MOD 无法加载
+- 控制台显示 Lua 语法错误
+- 游戏启动时报错
+
+#### 解决方案
+1. 检查语法错误
+```lua
+-- 常见语法错误示例
+-- 错误：缺少 end 关键字
+function MyFunction()
+    if something then
+        -- 处理逻辑
+    -- 缺少 end
+
+-- 正确写法
+function MyFunction()
+    if something then
+        -- 处理逻辑
+    end
+end
+```
+
+2. 检查文件编码
+- 确保使用 UTF-8 编码
+- 避免使用特殊字符
+- 检查文件 BOM 头
+
+3. 检查路径问题
+```lua
+-- 错误：使用反斜杠
+require("mods\\mymod\\main")
+
+-- 正确：使用正斜杠
+require("mods/mymod/main")
+```
+
+### 2. C++ SDK 集成问题
+
+#### 症状
+- 无法访问 C++ 类
+- 类型转换错误
+- 空指针异常
+
+#### 解决方案
+1. 检查类型声明
+```lua
+-- 错误：直接使用 C++ 类
+local myActor = UMyActor()
+
+-- 正确：使用正确的构造方法
+local myActor = UMyActor.Create()
+```
+
+2. 处理空值检查
+```lua
+-- 不安全的代码
+function HandleActor(actor)
+    actor:DoSomething() -- 可能崩溃
+
+-- 安全的代码
+function HandleActor(actor)
+    if actor and actor:IsValid() then
+        actor:DoSomething()
+    end
+end
+```
+
+### 3. 事件系统问题
+
+#### 症状
+- 事件未触发
+- 事件处理器重复注册
+- 内存泄漏
+
+#### 解决方案
+1. 事件注册检查
+```lua
+-- 问题代码：重复注册
+function OnInit()
+    RegisterEventHandler("GameStart", OnGameStart)
+    RegisterEventHandler("GameStart", OnGameStart) -- 重复！
+
+-- 解决方案：使用标记或清理
+local eventRegistered = false
+function OnInit()
+    if not eventRegistered then
+        RegisterEventHandler("GameStart", OnGameStart)
+        eventRegistered = true
+    end
+end
+```
+
+2. 事件清理
+```lua
+-- 正确的事件清理
+function OnModUnload()
+    UnregisterEventHandler("GameStart", OnGameStart)
+end
+```
+
+## 性能问题诊断
+
+### 1. 性能分析工具
+
+```lua
+-- 简单的性能分析器
+local Profiler = {
+    startTime = {},
+    results = {}
+}
+
+function Profiler:Start(name)
+    self.startTime[name] = os.clock()
+end
+
+function Profiler:End(name)
+    if self.startTime[name] then
+        local duration = os.clock() - self.startTime[name]
+        self.results[name] = (self.results[name] or 0) + duration
+        self.startTime[name] = nil
+    end
+end
+
+function Profiler:Report()
+    for name, time in pairs(self.results) do
+        print(string.format("%s: %.4f seconds", name, time))
+    end
+end
+```
+
+### 2. 常见性能问题
+
+#### 问题：频繁的垃圾回收
+```lua
+-- 问题代码
+function Update()
+    local temp = {} -- 每帧创建新表
+    -- ...
+end
+
+-- 优化后的代码
+local temp = {} -- 重用表
+function Update()
+    table.clear(temp)
+    -- ...
+end
+```
+
+#### 问题：不必要的字符串连接
+```lua
+-- 问题代码
+local str = ""
+for i = 1, 1000 do
+    str = str .. i -- 每次连接创建新字符串
+end
+
+-- 优化后的代码
+local t = {}
+for i = 1, 1000 do
+    t[i] = tostring(i)
+end
+local str = table.concat(t)
+```
+
+## 内存相关问题
+
+### 1. 内存泄漏检测
+
+```lua
+-- 内存使用监控
+local MemoryMonitor = {
+    snapshots = {}
+}
+
+function MemoryMonitor:TakeSnapshot(name)
+    local mem = collectgarbage("count")
+    self.snapshots[name] = mem
+    return mem
+end
+
+function MemoryMonitor:Compare(name1, name2)
+    local diff = self.snapshots[name2] - self.snapshots[name1]
+    print(string.format("内存差异 (%s -> %s): %.2f KB", name1, name2, diff))
+end
+```
+
+### 2. 循环引用检测
+
+```lua
+-- 循环引用检测器
+local function DetectCycles(t, seen)
+    seen = seen or {}
+    if type(t) ~= "table" then return false end
+    seen[t] = true
+    
+    for k, v in pairs(t) do
+        if type(v) == "table" then
+            if seen[v] or DetectCycles(v, seen) then
+                print("检测到循环引用:", k)
+                return true
+            end
+        end
+    end
+    
+    return false
+end
+```
+
+## 调试技巧
+
+### 1. 日志系统
+
+```lua
+-- 分级日志系统
+local Logger = {
+    LEVEL_DEBUG = 1,
+    LEVEL_INFO = 2,
+    LEVEL_WARN = 3,
+    LEVEL_ERROR = 4,
+    currentLevel = 1
+}
+
+function Logger:Log(level, message, ...)
+    if level >= self.currentLevel then
+        local levelName = "DEBUG"
+        if level == 2 then levelName = "INFO"
+        elseif level == 3 then levelName = "WARN"
+        elseif level == 4 then levelName = "ERROR"
+        end
+        
+        print(string.format("[%s] %s", levelName, string.format(message, ...)))
+    end
+end
+
+-- 使用示例
+Logger:Log(Logger.LEVEL_DEBUG, "调试信息: %s", "测试")
+Logger:Log(Logger.LEVEL_ERROR, "错误: %s", "发生错误")
+```
+
+### 2. 变量监视器
+
+```lua
+-- 变量监视器
+local function WatchVariable(name, getValue)
+    local lastValue = getValue()
+    return function()
+        local currentValue = getValue()
+        if currentValue ~= lastValue then
+            print(string.format("[监视] %s: %s -> %s",
+                name,
+                tostring(lastValue),
+                tostring(currentValue)))
+            lastValue = currentValue
+        end
+    end
+end
+
+-- 使用示例
+local health = 100
+local watchHealth = WatchVariable("生命值", function() return health end)
+```
+
+## 环境问题
+
+### 1. 路径问题
+
+```lua
+-- 路径规范化
+local function NormalizePath(path)
+    -- 转换反斜杠为正斜杠
+    path = string.gsub(path, "\\", "/")
+    -- 移除重复的斜杠
+    path = string.gsub(path, "//+", "/")
+    return path
+end
+
+-- 检查文件存在
+local function FileExists(path)
+    local file = io.open(path, "r")
+    if file then
+        file:close()
+        return true
+    end
+    return false
+end
+```
+
+### 2. 依赖检查
+
+```lua
+-- 依赖检查器
+local function CheckDependencies(dependencies)
+    local missing = {}
+    for _, dep in ipairs(dependencies) do
+        if not pcall(require, dep) then
+            table.insert(missing, dep)
+        end
+    end
+    
+    if #missing > 0 then
+        error("缺少依赖模块: " .. table.concat(missing, ", "))
+    end
+end
+```
+
+## 常见问题解答
+
+### Q1: MOD 加载顺序问题
+**问题**: 我的 MOD 依赖于其他 MOD，如何确保正确的加载顺序？
+
+**解决方案**:
+1. 在 MOD 配置中声明依赖：
+```lua
+-- mod_config.lua
+return {
+    name = "MyMod",
+    dependencies = {
+        "OtherMod1",
+        "OtherMod2"
+    }
+}
+```
+
+2. 实现依赖检查：
+```lua
+function CheckModDependencies()
+    local config = require("mod_config")
+    for _, dep in ipairs(config.dependencies) do
+        if not IsModLoaded(dep) then
+            error(string.format("缺少依赖 MOD: %s", dep))
+        end
+    end
+end
+```
+
+### Q2: 热重载问题
+**问题**: 在开发过程中如何实现 MOD 的热重载？
+
+**解决方案**:
+1. 实现重载函数：
+```lua
+function ReloadMod()
+    -- 保存状态
+    local savedState = SaveModState()
+    
+    -- 清理资源
+    CleanupResources()
+    
+    -- 重新加载脚本
+    package.loaded["mymod"] = nil
+    require("mymod")
+    
+    -- 恢复状态
+    RestoreModState(savedState)
+end
+```
+
+### Q3: 版本兼容性问题
+**问题**: 如何处理不同游戏版本的兼容性？
+
+**解决方案**:
+1. 版本检查：
+```lua
+function CheckGameVersion()
+    local currentVersion = GetGameVersion()
+    local requiredVersion = "1.2.3"
+    
+    if not IsVersionCompatible(currentVersion, requiredVersion) then
+        error(string.format(
+            "MOD 需要游戏版本 %s 或更高，当前版本为 %s",
+            requiredVersion,
+            currentVersion
+        ))
+    end
+end
+```
+
+### Q4: 资源清理问题
+**问题**: 如何确保 MOD 卸载时正确清理资源？
+
+**解决方案**:
+1. 实现完整的清理函数：
+```lua
+function CleanupMod()
+    -- 清理事件监听器
+    UnregisterAllEventHandlers()
+    
+    -- 清理 UI 元素
+    CleanupUI()
+    
+    -- 清理定时器
+    CancelAllTimers()
+    
+    -- 保存数据
+    SaveModData()
+    
+    -- 清理内存
+    collectgarbage("collect")
+end
+```
+
+### Q5: 错误报告问题
+**问题**: 如何收集和报告 MOD 运行时的错误？
+
+**解决方案**:
+1. 实现错误处理器：
+```lua
+local function ErrorHandler(err)
+    -- 获取堆栈跟踪
+    local trace = debug.traceback(err, 2)
+    
+    -- 记录错误
+    Logger:Log(Logger.LEVEL_ERROR, "MOD 错误:\n%s", trace)
+    
+    -- 保存错误日志
+    local file = io.open("mod_error.log", "a")
+    if file then
+        file:write(string.format("[%s] %s\n",
+            os.date("%Y-%m-%d %H:%M:%S"),
+            trace))
+        file:close()
+    end
+    
+    return err
+end
+
+-- 使用错误处理器
+function SafeExecute(func, ...)
+    return xpcall(func, ErrorHandler, ...)
+end
+```
+
+记住，这些解决方案可能需要根据具体情况进行调整。如果问题持续存在或遇到新的问题，建议：
+
+1. 查看最新的文档和更新日志
+2. 在官方论坛或 Discord 寻求帮助
+3. 提交详细的错误报告，包括：
+   - 错误信息和堆栈跟踪
+   - MOD 和游戏版本信息
+   - 复现步骤
+   - 相关的代码片段
+
+保持代码整洁和模块化不仅有助于排查问题，也能让其他开发者更容易理解和维护你的 MOD。
