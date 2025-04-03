@@ -45,6 +45,24 @@
    - 发布和分发指南
    - 常见问题解答
 
+7. [SDK Lua 集成指南](sdk_lua_integration.md)
+   - C++ SDK 类在 Lua 中的使用
+   - Lua 与 C++ 交互最佳实践
+   - SDK 扩展和自定义
+
+8. [事件系统指南](event_system_guide.md)
+   - 事件系统概述
+   - 事件注册和触发
+   - 自定义事件创建
+   - 事件处理最佳实践
+
+9. [性能优化指南](performance_optimization_guide.md)
+   - Lua 代码优化技巧
+   - 内存管理和对象池
+   - 资源加载优化
+   - UI 性能优化
+   - 网络优化策略
+
 ## 快速开始
 
 要开始 MOD 开发，请按照以下步骤操作：
@@ -53,8 +71,11 @@
 2. 查看 [Lua MOD 开发指南](lua_modding_guide.md) 了解基本的 MOD 结构和开发流程，或直接阅读 [详细 Lua MOD 开发指南](detailed_lua_mod_guide.md) 获取更深入的开发知识。
 3. 参考 [数据结构文档](data_structures.md) 和 [函数接口文档](function_interfaces.md) 了解可用的游戏数据和 API。
 4. 使用 [类型系统文档](type_system.md) 确保类型安全和最佳实践。
-5. 浏览 [MOD 开发实例教程](tutorials/mod_examples.md) 获取实际的代码示例和开发灵感。
-6. 查阅 [API 参考文档](api_reference.md) 获取详细的 API 使用说明和示例。
+5. 学习 [SDK Lua 集成指南](sdk_lua_integration.md) 了解如何在 Lua 中使用 C++ SDK 类。
+6. 熟悉 [事件系统指南](event_system_guide.md) 以有效利用游戏中的事件机制。
+7. 研究 [性能优化指南](performance_optimization_guide.md) 以提高 MOD 的性能和效率。
+8. 浏览 [MOD 开发实例教程](tutorials/mod_examples.md) 获取实际的代码示例和开发灵感。
+9. 查阅 [API 参考文档](api_reference.md) 获取详细的 API 使用说明和示例。
 
 ## API 参考
 
@@ -85,7 +106,7 @@ UE5LuaModKit 提供了丰富的 API 以支持各种 MOD 开发需求。我们的
 
 ## 贡献指南
 
-我们欢迎社区贡献以改进这个文档项目。如果您发现任何错误或有改进建议，请提交 Issue 或 Pull Request。
+我们欢迎社区贡献以改进这个文档项目。请查看我们的 [社区贡献指南](community_contribution_guide.md) 了解如何参与项目开发。如果您在使用过程中遇到问题，可以参考 [故障排除指南](troubleshooting_guide.md) 寻找解决方案。
 
 ## 许可证
 
