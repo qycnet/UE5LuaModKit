@@ -35,12 +35,22 @@
    - 结构体与类
    - 类型安全与最佳实践
 
+6. [详细 Lua MOD 开发指南](detailed_lua_mod_guide.md)
+   - 环境设置和配置
+   - 基础 Lua 语法回顾
+   - UE5 与 Lua 交互基础
+   - 常用 UE5 API 使用指南
+   - MOD 结构和组织
+   - 调试和优化技巧
+   - 发布和分发指南
+   - 常见问题解答
+
 ## 快速开始
 
 要开始 MOD 开发，请按照以下步骤操作：
 
 1. 阅读 [项目概述](project_overview.md) 了解游戏架构。
-2. 查看 [Lua MOD 开发指南](lua_modding_guide.md) 了解基本的 MOD 结构和开发流程。
+2. 查看 [Lua MOD 开发指南](lua_modding_guide.md) 了解基本的 MOD 结构和开发流程，或直接阅读 [详细 Lua MOD 开发指南](detailed_lua_mod_guide.md) 获取更深入的开发知识。
 3. 参考 [数据结构文档](data_structures.md) 和 [函数接口文档](function_interfaces.md) 了解可用的游戏数据和 API。
 4. 使用 [类型系统文档](type_system.md) 确保类型安全和最佳实践。
 
