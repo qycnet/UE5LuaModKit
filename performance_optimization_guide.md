@@ -1,506 +1,491 @@
 # UE5LuaModKit 性能优化指南
 
-本指南提供了在使用 UE5LuaModKit 开发 MOD 时的性能优化建议和最佳实践。通过遵循这些指导原则，您可以创建高效、流畅的 MOD。
+本指南提供了在使用 UE5LuaModKit 开发 MOD 时的性能优化建议和最佳实践。
 
 ## 目录
 
-1. [Lua 代码优化](#lua-代码优化)
-2. [内存管理](#内存管理)
-3. [游戏对象优化](#游戏对象优化)
-4. [UI 性能优化](#ui-性能优化)
-5. [网络性能优化](#网络性能优化)
-6. [资源管理优化](#资源管理优化)
-7. [性能分析工具](#性能分析工具)
+1. [性能优化基础](#性能优化基础)
+2. [Lua 代码优化](#lua-代码优化)
+3. [内存管理优化](#内存管理优化)
+4. [资源加载优化](#资源加载优化)
+5. [UI 性能优化](#ui-性能优化)
+6. [网络优化](#网络优化)
+7. [调试和性能分析](#调试和性能分析)
+
+## 性能优化基础
+
+### 性能优化原则
+
+1. 提前优化是万恶之源
+   - 首先保证代码正确性和可维护性
+   - 使用性能分析工具找出瓶颈
+   - 针对性优化性能热点
+
+2. 优化策略
+   - 减少不必要的计算
+   - 优化数据结构和算法
+   - 利用缓存机制
+   - 异步处理耗时操作
+
+### 性能分析工具
+
+```lua
+-- 简单的性能分析器
+local Profiler = {
+    timers = {},
+    enabled = true
+}
+
+function Profiler:StartTimer(name)
+    if not self.enabled then return end
+    self.timers[name] = {
+        startTime = os.clock(),
+        calls = (self.timers[name] and self.timers[name].calls or 0) + 1
+    }
+end
+
+function Profiler:StopTimer(name)
+    if not self.enabled or not self.timers[name] then return end
+    local timer = self.timers[name]
+    local duration = os.clock() - timer.startTime
+    timer.totalTime = (timer.totalTime or 0) + duration
+    timer.avgTime = timer.totalTime / timer.calls
+end
+
+function Profiler:GetStats()
+    local stats = {}
+    for name, timer in pairs(self.timers) do
+        stats[name] = {
+            calls = timer.calls,
+            totalTime = timer.totalTime,
+            avgTime = timer.avgTime
+        }
+    end
+    return stats
+end
+```
 
 ## Lua 代码优化
 
 ### 1. 局部变量优化
 
-使用局部变量而不是全局变量，因为局部变量访问速度更快。
-
 ```lua
 -- 不推荐
-function UpdatePosition()
-    x = x + speed * deltaTime  -- 使用全局变量
+function BadPerformance()
+    for i = 1, 1000 do
+        global_var = global_var + 1  -- 全局变量访问较慢
+    end
 end
 
 -- 推荐
-function UpdatePosition()
-    local x = self.x  -- 使用局部变量
-    x = x + self.speed * deltaTime
-    self.x = x
+function GoodPerformance()
+    local temp = global_var  -- 缓存到局部变量
+    for i = 1, 1000 do
+        temp = temp + 1
+    end
+    global_var = temp
 end
 ```
 
-### 2. 表和字符串操作优化
-
-避免频繁的表创建和字符串连接操作。
+### 2. 表和字符串优化
 
 ```lua
--- 不推荐
-local function BuildMessage()
-    local message = ""
-    for i = 1, 100 do
-        message = message .. "Item " .. i .. ", "  -- 频繁的字符串连接
-    end
-    return message
+-- 字符串连接优化
+local function OptimizedStringConcat(strings)
+    -- 使用 table.concat 而不是 .. 运算符
+    return table.concat(strings)
 end
 
--- 推荐
-local function BuildMessage()
-    local parts = {}
-    for i = 1, 100 do
-        parts[i] = string.format("Item %d", i)  -- 使用 string.format
+-- 表预分配
+local function CreateLargeTable(size)
+    local t = table.create(size)  -- 预分配空间
+    for i = 1, size do
+        t[i] = i
     end
-    return table.concat(parts, ", ")  -- 一次性连接
+    return t
 end
 ```
 
 ### 3. 循环优化
 
-优化循环结构，避免不必要的计算。
-
 ```lua
--- 不推荐
-for i = 1, #items do  -- 每次迭代都计算长度
-    ProcessItem(items[i])
-end
-
--- 推荐
-local itemCount = #items  -- 预先计算长度
-for i = 1, itemCount do
-    ProcessItem(items[i])
+-- 循环优化示例
+local function OptimizedLoop()
+    local t = {}
+    local n = #t
+    
+    -- 缓存长度
+    for i = 1, n do
+        -- 处理逻辑
+    end
+    
+    -- 使用 ipairs 代替 pairs 遍历数组
+    for i, v in ipairs(t) do
+        -- 处理逻辑
+    end
 end
 ```
 
-### 4. 闭包和函数缓存
+## 内存管理优化
 
-缓存经常使用的函数，避免重复创建闭包。
-
-```lua
--- 不推荐
-function Update()
-    local handler = function(event)  -- 每次调用都创建新的闭包
-        ProcessEvent(event)
-    end
-    RegisterEventHandler("update", handler)
-end
-
--- 推荐
-local eventHandler = function(event)  -- 预先创建闭包
-    ProcessEvent(event)
-end
-function Update()
-    RegisterEventHandler("update", eventHandler)
-end
-```
-
-## 内存管理
-
-### 1. 对象池模式
-
-对于频繁创建和销毁的对象，使用对象池来减少内存分配。
+### 1. 对象池
 
 ```lua
-local ObjectPool = {
-    pool = {},
-    maxSize = 100
-}
+-- 对象池实现
+local ObjectPool = {}
+ObjectPool.__index = ObjectPool
 
-function ObjectPool:Get()
-    if #self.pool > 0 then
-        return table.remove(self.pool)
-    else
-        return self:CreateNew()
-    end
+function ObjectPool.new(createFunc, maxSize)
+    local self = setmetatable({}, ObjectPool)
+    self.createFunc = createFunc
+    self.maxSize = maxSize
+    self.objects = {}
+    self.activeObjects = {}
+    return self
 end
 
-function ObjectPool:Return(obj)
-    if #self.pool < self.maxSize then
-        obj:Reset()  -- 重置对象状态
-        table.insert(self.pool, obj)
+function ObjectPool:Acquire()
+    local obj = table.remove(self.objects)
+    if not obj and #self.activeObjects < self.maxSize then
+        obj = self.createFunc()
+    end
+    
+    if obj then
+        self.activeObjects[obj] = true
+    end
+    return obj
+end
+
+function ObjectPool:Release(obj)
+    if self.activeObjects[obj] then
+        self.activeObjects[obj] = nil
+        table.insert(self.objects, obj)
     end
 end
 
 -- 使用示例
-local bulletPool = ObjectPool:New()
-local bullet = bulletPool:Get()
--- 使用子弹
-bulletPool:Return(bullet)  -- 回收子弹
-```
-
-### 2. 垃圾收集控制
-
-合理控制垃圾收集的时机。
-
-```lua
-local function ControlledGC()
-    local before = collectgarbage("count")
-    collectgarbage("step", 100)  -- 逐步进行垃圾收集
-    local after = collectgarbage("count")
-    return before - after
-end
-
--- 在适当的时机调用
-function OnLevelLoad()
-    collectgarbage("collect")  -- 完整的垃圾收集
-end
-```
-
-### 3. 内存泄漏预防
-
-实现对象的正确清理机制。
-
-```lua
-local function CreateManager()
-    local manager = {
-        resources = {},
-        eventHandlers = {}
+local bulletPool = ObjectPool.new(function()
+    return {
+        position = {x = 0, y = 0, z = 0},
+        velocity = {x = 0, y = 0, z = 0}
     }
-    
-    function manager:Cleanup()
-        -- 清理资源
-        for _, resource in pairs(self.resources) do
+end, 1000)
+```
+
+### 2. 内存泄漏防护
+
+```lua
+-- 弱引用表
+local cache = setmetatable({}, {__mode = "v"})  -- 值弱引用
+
+-- 资源清理器
+local ResourceCleaner = {
+    resources = setmetatable({}, {__mode = "k"})  -- 键弱引用
+}
+
+function ResourceCleaner:Track(resource)
+    self.resources[resource] = true
+end
+
+function ResourceCleaner:Cleanup()
+    for resource in pairs(self.resources) do
+        if resource.Dispose then
             resource:Dispose()
         end
-        -- 移除事件处理器
-        for _, handler in pairs(self.eventHandlers) do
-            UnregisterEventHandler(handler)
-        end
-        self.resources = {}
-        self.eventHandlers = {}
     end
-    
-    return manager
 end
 ```
 
-## 游戏对象优化
+## 资源加载优化
 
-### 1. 组件更新优化
-
-控制组件更新频率，避免不必要的更新。
+### 1. 异步加载
 
 ```lua
-local function CreateUpdateManager()
-    local manager = {
-        components = {},
-        updateFrequency = {}
+-- 异步资源加载器
+local AsyncLoader = {}
+
+function AsyncLoader:LoadTexture(path, callback)
+    -- 在后台线程加载纹理
+    local request = {
+        path = path,
+        callback = callback,
+        status = "pending"
     }
     
-    function manager:AddComponent(component, frequency)
-        self.components[component] = 0  -- 上次更新时间
-        self.updateFrequency[component] = frequency
-    end
-    
-    function manager:Update(deltaTime)
-        for component, lastUpdate in pairs(self.components) do
-            local frequency = self.updateFrequency[component]
-            if lastUpdate >= frequency then
-                component:Update(deltaTime)
-                self.components[component] = 0
-            else
-                self.components[component] = lastUpdate + deltaTime
-            end
+    -- 模拟异步加载
+    SetTimeout(function()
+        request.status = "completed"
+        if callback then
+            callback(texture)
         end
-    end
+    end, 0)
     
-    return manager
+    return request
+end
+
+-- 资源预加载
+function AsyncLoader:Preload(resources)
+    for _, resource in ipairs(resources) do
+        self:LoadTexture(resource.path, function(texture)
+            -- 缓存加载的资源
+            ResourceCache[resource.path] = texture
+        end)
+    end
 end
 ```
 
-### 2. 可见性优化
-
-实现简单的可见性检查，避免更新不可见的对象。
+### 2. 资源缓存
 
 ```lua
-local function IsInViewFrustum(object, camera)
-    -- 简化的视锥体检查
-    local distance = Vector.Distance(object.position, camera.position)
-    return distance <= camera.viewDistance
+-- 资源缓存系统
+local ResourceCache = {
+    cache = {},
+    maxSize = 1000
+}
+
+function ResourceCache:Get(key)
+    local resource = self.cache[key]
+    if resource then
+        resource.lastAccess = os.time()
+        return resource.data
+    end
+    return nil
 end
 
-function UpdateObjects(camera, objects)
-    for _, obj in ipairs(objects) do
-        if IsInViewFrustum(obj, camera) then
-            obj:Update()
+function ResourceCache:Set(key, data)
+    -- 检查缓存大小
+    if self:GetSize() >= self.maxSize then
+        self:Cleanup()
+    end
+    
+    self.cache[key] = {
+        data = data,
+        lastAccess = os.time()
+    }
+end
+
+function ResourceCache:Cleanup()
+    -- 移除最旧的项目
+    local oldest = nil
+    local oldestTime = math.huge
+    
+    for key, resource in pairs(self.cache) do
+        if resource.lastAccess < oldestTime then
+            oldest = key
+            oldestTime = resource.lastAccess
         end
+    end
+    
+    if oldest then
+        self.cache[oldest] = nil
     end
 end
 ```
 
 ## UI 性能优化
 
-### 1. UI 元素缓存
-
-缓存频繁访问的 UI 元素。
+### 1. UI 更新优化
 
 ```lua
-local UI = {
-    elements = {},
-    cache = {}
+-- UI 更新管理器
+local UIUpdateManager = {
+    dirtyComponents = {},
+    updateScheduled = false
 }
 
-function UI:GetElement(id)
-    if not self.cache[id] then
-        self.cache[id] = self:FindElement(id)  -- 耗时的查找操作
+function UIUpdateManager:MarkDirty(component)
+    self.dirtyComponents[component] = true
+    self:ScheduleUpdate()
+end
+
+function UIUpdateManager:ScheduleUpdate()
+    if not self.updateScheduled then
+        self.updateScheduled = true
+        SetTimeout(function()
+            self:ProcessUpdates()
+        end, 0)
     end
-    return self.cache[id]
 end
 
-function UI:InvalidateCache()
-    self.cache = {}  -- 在 UI 结构变化时清除缓存
-end
-```
-
-### 2. UI 更新批处理
-
-将 UI 更新操作批量处理。
-
-```lua
-local UIBatch = {
-    updates = {},
-    batchSize = 10
-}
-
-function UIBatch:AddUpdate(element, property, value)
-    table.insert(self.updates, {
-        element = element,
-        property = property,
-        value = value
-    })
+function UIUpdateManager:ProcessUpdates()
+    for component in pairs(self.dirtyComponents) do
+        component:Update()
+    end
     
-    if #self.updates >= self.batchSize then
-        self:Flush()
-    end
-end
-
-function UIBatch:Flush()
-    for _, update in ipairs(self.updates) do
-        update.element[update.property] = update.value
-    end
-    self.updates = {}
+    self.dirtyComponents = {}
+    self.updateScheduled = false
 end
 ```
 
-## 网络性能优化
+### 2. UI 对象池
+
+```lua
+-- UI 元素池
+local UIElementPool = {
+    pools = {}
+}
+
+function UIElementPool:GetPool(elementType)
+    if not self.pools[elementType] then
+        self.pools[elementType] = ObjectPool.new(function()
+            return self:CreateElement(elementType)
+        end, 100)
+    end
+    return self.pools[elementType]
+end
+
+function UIElementPool:CreateElement(elementType)
+    -- 创建 UI 元素
+    local element = {
+        type = elementType,
+        visible = false
+    }
+    
+    function element:Reset()
+        self.visible = false
+        -- 重置其他属性
+    end
+    
+    return element
+end
+```
+
+## 网络优化
 
 ### 1. 数据压缩
 
-在网络传输前压缩数据。
-
 ```lua
-local NetworkOptimizer = {
-    -- 简单的数字压缩示例
-    CompressVector = function(vector)
-        -- 将浮点数转换为定点数以减少数据量
-        return {
-            x = math.floor(vector.x * 100),
-            y = math.floor(vector.y * 100),
-            z = math.floor(vector.z * 100)
-        }
-    end,
-    
-    DecompressVector = function(compressed)
-        return {
-            x = compressed.x / 100,
-            y = compressed.y / 100,
-            z = compressed.z / 100
-        }
+-- 数据压缩工具
+local DataCompression = {}
+
+function DataCompression:CompressNumber(num)
+    -- 简单的数值压缩示例
+    if math.abs(num) < 1 then
+        return string.pack("f", num)
+    else
+        return string.pack("i4", num)
     end
-}
+end
+
+function DataCompression:CompressVector(vector)
+    -- 压缩向量数据
+    return string.pack("fff", vector.x, vector.y, vector.z)
+end
 ```
 
-### 2. 更新频率控制
-
-控制网络更新的频率。
+### 2. 批量处理
 
 ```lua
-local NetworkUpdate = {
-    lastUpdate = 0,
-    updateInterval = 0.1,  -- 100ms
-    
-    ShouldUpdate = function(self, currentTime)
-        if currentTime - self.lastUpdate >= self.updateInterval then
-            self.lastUpdate = currentTime
-            return true
-        end
-        return false
-    end
+-- 网络消息批处理器
+local NetworkBatcher = {
+    queue = {},
+    batchSize = 10,
+    batchDelay = 0.1
 }
+
+function NetworkBatcher:QueueMessage(message)
+    table.insert(self.queue, message)
+    
+    if #self.queue >= self.batchSize then
+        self:Flush()
+    else
+        self:ScheduleFlush()
+    end
+end
+
+function NetworkBatcher:Flush()
+    if #self.queue > 0 then
+        -- 发送批量消息
+        NetworkManager:SendBatch(self.queue)
+        self.queue = {}
+    end
+end
 ```
 
-## 资源管理优化
+## 调试和性能分析
 
-### 1. 资源预加载
-
-实现智能的资源预加载系统。
+### 1. 性能监控
 
 ```lua
-local ResourceManager = {
-    loaded = {},
-    loading = {},
-    
-    PreloadResource = function(self, path)
-        if not self.loaded[path] and not self.loading[path] then
-            self.loading[path] = true
-            LoadResourceAsync(path, function(resource)
-                self.loaded[path] = resource
-                self.loading[path] = nil
-            end)
-        end
-    end,
-    
-    GetResource = function(self, path)
-        return self.loaded[path]
-    end
+-- 性能监控器
+local PerformanceMonitor = {
+    metrics = {},
+    sampleSize = 60  -- 保存60帧的数据
 }
+
+function PerformanceMonitor:Update()
+    local frameTime = GetDeltaTime()
+    local memory = collectgarbage("count")
+    
+    table.insert(self.metrics, {
+        time = frameTime,
+        memory = memory
+    })
+    
+    -- 保持固定样本大小
+    if #self.metrics > self.sampleSize then
+        table.remove(self.metrics, 1)
+    end
+end
+
+function PerformanceMonitor:GetAverages()
+    local totalTime = 0
+    local totalMemory = 0
+    local count = #self.metrics
+    
+    for _, metric in ipairs(self.metrics) do
+        totalTime = totalTime + metric.time
+        totalMemory = totalMemory + metric.memory
+    end
+    
+    return {
+        avgFrameTime = totalTime / count,
+        avgMemory = totalMemory / count
+    }
+end
 ```
 
-### 2. 资源卸载策略
-
-实现智能的资源卸载策略。
+### 2. 调试工具
 
 ```lua
-local ResourceCache = {
-    resources = {},
-    lastUsed = {},
-    maxAge = 300,  -- 5分钟
-    
-    Update = function(self, currentTime)
-        for path, timestamp in pairs(self.lastUsed) do
-            if currentTime - timestamp > self.maxAge then
-                self:UnloadResource(path)
-            end
-        end
-    end,
-    
-    UnloadResource = function(self, path)
-        if self.resources[path] then
-            self.resources[path]:Dispose()
-            self.resources[path] = nil
-            self.lastUsed[path] = nil
-        end
-    end
+-- 调试工具
+local DebugTools = {
+    enabled = true
 }
-```
 
-## 性能分析工具
-
-### 1. 简单的性能计时器
-
-实现性能监控工具。
-
-```lua
-local Profiler = {
-    timers = {},
+function DebugTools:WatchValue(name, getValue)
+    if not self.enabled then return end
     
-    Start = function(self, name)
-        self.timers[name] = {
-            startTime = os.clock(),
-            calls = (self.timers[name] and self.timers[name].calls or 0) + 1
-        }
-    end,
+    local lastValue = getValue()
     
-    End = function(self, name)
-        if self.timers[name] then
-            local duration = os.clock() - self.timers[name].startTime
-            self.timers[name].totalTime = (self.timers[name].totalTime or 0) + duration
-        end
-    end,
-    
-    Report = function(self)
-        for name, data in pairs(self.timers) do
-            print(string.format(
-                "%s: %d calls, total time: %.4fs, average: %.4fs",
+    -- 创建观察器
+    return function()
+        local currentValue = getValue()
+        if currentValue ~= lastValue then
+            print(string.format("[DEBUG] %s changed: %s -> %s",
                 name,
-                data.calls,
-                data.totalTime,
-                data.totalTime / data.calls
+                tostring(lastValue),
+                tostring(currentValue)
             ))
+            lastValue = currentValue
         end
     end
-}
+end
 
--- 使用示例
-Profiler:Start("UpdateLoop")
--- 执行代码
-Profiler:End("UpdateLoop")
+function DebugTools:TrackObjectLifetime(obj, name)
+    if not self.enabled then return obj end
+    
+    -- 创建代理对象
+    local proxy = setmetatable({}, {
+        __index = obj,
+        __newindex = obj,
+        __gc = function()
+            print(string.format("[DEBUG] Object %s was garbage collected", name))
+        end
+    })
+    
+    return proxy
+end
 ```
 
-### 2. 内存使用监控
-
-监控内存使用情况。
-
-```lua
-local MemoryMonitor = {
-    samples = {},
-    maxSamples = 100,
-    
-    Sample = function(self)
-        local memory = collectgarbage("count")
-        table.insert(self.samples, memory)
-        if #self.samples > self.maxSamples then
-            table.remove(self.samples, 1)
-        end
-        return memory
-    end,
-    
-    GetAverageUsage = function(self)
-        local sum = 0
-        for _, memory in ipairs(self.samples) do
-            sum = sum + memory
-        end
-        return sum / #self.samples
-    end,
-    
-    GetPeakUsage = function(self)
-        local peak = 0
-        for _, memory in ipairs(self.samples) do
-            peak = math.max(peak, memory)
-        end
-        return peak
-    end
-}
-```
-
-## 最佳实践总结
-
-1. **代码优化**
-   - 使用局部变量
-   - 避免频繁的表创建和字符串连接
-   - 优化循环结构
-   - 缓存函数和闭包
-
-2. **内存管理**
-   - 使用对象池
-   - 控制垃圾收集
-   - 防止内存泄漏
-   - 实现资源生命周期管理
-
-3. **游戏对象**
-   - 控制更新频率
-   - 实现可见性优化
-   - 使用组件系统
-
-4. **UI 系统**
-   - 缓存 UI 元素
-   - 批量处理更新
-   - 优化布局计算
-
-5. **网络通信**
-   - 压缩数据
-   - 控制更新频率
-   - 实现预测和插值
-
-6. **资源管理**
-   - 智能预加载
-   - 实现卸载策略
-   - 缓存常用资源
-
-7. **性能监控**
-   - 使用性能分析工具
-   - 监控内存使用
-   - 定期检查性能指标
-
-通过遵循这些优化建议，您可以显著提高 MOD 的性能。记住，性能优化是一个持续的过程，需要根据具体情况和需求来选择合适的优化策略。
+通过实施这些优化策略，您可以显著提高 MOD 的性能。记住要在优化时保持代码的可读性和可维护性，并使用性能分析工具来验证优化的效果。根据具体情况选择合适的优化策略，避免过度优化导致代码复杂化。
