@@ -1,5 +1,51 @@
 # Lua MOD 开发指南
 
+## Mods 文件夹
+
+我们新增了一个 `Mods` 文件夹，用于开发者上传和分享自己制作的 MODs。这个文件夹的主要目的是促进社区内的 MOD 交流和协作。
+
+### 文件夹结构
+
+```
+Mods/
+├── ModCreator1/
+│   ├── Scripts/
+│   │   ├── main.lua
+│   │   ├── config.lua
+│   │   └── ...
+│   └── enabled.txt
+├── ModCreator2/
+│   ├── Scripts/
+│   │   ├── main.lua
+│   │   ├── config.lua
+│   │   └── ...
+│   └── enabled.txt
+├── Mod/
+│   ├── Scripts/
+│   │   ├── main.lua
+│   │   ├── config.lua
+│   │   └── ...
+│   └── enabled.txt
+```
+
+### 使用指南
+
+1. 创建你的个人文件夹：在 `Mods` 文件夹下创建一个以你的用户名或昵称命名的文件夹。
+2. 上传你的 MOD：将你开发的每个 MOD 放在你的个人文件夹下的单独子文件夹中。
+3. 包含必要文件：确保每个 MOD 文件夹至少包含 `mod.lua` 和 `config.json` 文件。
+4. 添加说明文档：建议为每个 MOD 添加一个 README.md 文件，描述 MOD 的功能、安装方法和使用说明。
+5. 版本控制：如果你更新了 MOD，请确保更新 `config.json` 中的版本号。
+
+### 注意事项
+
+- 请遵守社区规则和版权法律。
+- 不要上传包含恶意代码或侵犯他人权益的 MOD。
+- 鼓励为你的 MOD 提供开源许可证，以促进社区协作。
+- 如果你的 MOD 依赖于其他 MOD，请在说明文档中清楚地注明。
+
+我们鼓励所有开发者积极参与到这个共享平台中来。通过分享你的作品，你不仅可以得到社区的反馈，还可以与其他开发者交流学习，共同提升 MOD 开发技能。
+
+
 ## 基础设置
 
 ### 1. MOD 结构
@@ -84,7 +130,71 @@ RegisterEventHandler("OnNPCSpawned", function(npc)
     local aiController = npc:GetAIController()
     aiController:SetBehavior("Friendly")
 end)
+
+-- 监听玩家等级提升事件
+RegisterEventHandler("OnPlayerLevelUp", function(player, newLevel)
+    print("玩家 " .. player:GetName() .. " 升级到 " .. newLevel)
+    
+    -- 给予奖励
+    if newLevel % 5 == 0 then  -- 每5级给予特殊奖励
+        player:AddItem("SpecialRewardItem", 1)
+        ShowNotification("恭喜达到 " .. newLevel .. " 级！获得特殊奖励！")
+    end
+    
+    -- 解锁新技能
+    UnlockSkillForPlayer(player, "Skill_" .. newLevel)
+end)
+
+-- 监听游戏时间变化事件
+RegisterEventHandler("OnGameTimeChanged", function(newTime)
+    local hour = math.floor(newTime)
+    local minute = math.floor((newTime % 1) * 60)
+    
+    print(string.format("游戏时间: %02d:%02d", hour, minute))
+    
+    -- 根据时间触发特定事件
+    if hour == 0 and minute == 0 then
+        TriggerMidnightEvent()
+    elseif hour == 12 and minute == 0 then
+        TriggerNoonEvent()
+    end
+end)
 ```
+
+更多高级事件监听示例，请参考 [高级事件处理教程](tutorials/advanced_event_handling.md)。
+
+### 2. 自定义UI
+```lua
+-- 创建自定义UI窗口
+local myWindow = CreateWindow("我的MOD窗口", 400, 300)
+
+-- 添加按钮
+local button = myWindow:AddButton("点击我", 150, 100, 100, 30)
+button.OnClick = function()
+    print("按钮被点击了!")
+end
+
+-- 添加文本输入框
+local inputField = myWindow:AddInputField("输入名称", 50, 150, 200, 30)
+
+-- 添加下拉菜单
+local dropdown = myWindow:AddDropdown("选择选项", 50, 200, 150, 30)
+dropdown:AddOptions({"选项1", "选项2", "选项3"})
+dropdown.OnSelectionChanged = function(selectedOption)
+    print("选择了: " .. selectedOption)
+end
+
+-- 添加滑动条
+local slider = myWindow:AddSlider("音量", 0, 100, 50, 250, 200, 30)
+slider.OnValueChanged = function(newValue)
+    SetGameVolume(newValue / 100)
+end
+
+-- 显示窗口
+myWindow:Show()
+```
+
+更多UI定制示例，请查看 [高级UI开发教程](tutorials/advanced_ui_development.md)。
 
 ### 2. 自定义UI
 ```lua
@@ -174,7 +284,131 @@ RegisterEventHandler("OnTick", function(deltaTime)
         PerformExpensiveOperation()
     end
 end)
+
+-- 使用对象池来减少内存分配
+local ObjectPool = {}
+function ObjectPool:New(createFunc, initialSize)
+    local pool = {objects = {}, createFunc = createFunc}
+    for i = 1, initialSize do
+        table.insert(pool.objects, createFunc())
+    end
+    return setmetatable(pool, {__index = ObjectPool})
+end
+
+function ObjectPool:Acquire()
+    if #self.objects > 0 then
+        return table.remove(self.objects)
+    else
+        return self.createFunc()
+    end
+end
+
+function ObjectPool:Release(obj)
+    table.insert(self.objects, obj)
+end
+
+-- 使用示例
+local bulletPool = ObjectPool:New(function() return {x = 0, y = 0, active = false} end, 100)
+
+-- 发射子弹
+function FireBullet(x, y)
+    local bullet = bulletPool:Acquire()
+    bullet.x, bullet.y, bullet.active = x, y, true
+    -- 使用子弹...
+end
+
+-- 回收子弹
+function RecycleBullet(bullet)
+    bullet.active = false
+    bulletPool:Release(bullet)
+end
 ```
+
+更多性能优化技巧，请参考 [高级性能优化指南](tutorials/advanced_performance_optimization.md)。
+
+### 2. 模块化开发
+```lua
+-- 模块定义 (scripts/combat.lua)
+local CombatModule = {}
+
+function CombatModule.CalculateDamage(attacker, defender, baseAmount)
+    -- 复杂的伤害计算逻辑
+    local finalDamage = baseAmount
+    finalDamage = finalDamage * (1 + attacker.AttackPower / 100)
+    finalDamage = finalDamage * (1 - defender.Defense / 200)
+    return math.max(1, math.floor(finalDamage))
+end
+
+function CombatModule.ApplyStatusEffect(target, effectType, duration)
+    if not target.StatusEffects then
+        target.StatusEffects = {}
+    end
+    target.StatusEffects[effectType] = {
+        duration = duration,
+        startTime = GetGameTime()
+    }
+end
+
+return CombatModule
+
+-- 在主文件中使用模块
+local CombatSystem = require("scripts/combat")
+local damage = CombatSystem.CalculateDamage(player, enemy, 100)
+CombatSystem.ApplyStatusEffect(enemy, "Stun", 5)
+```
+
+### 3. 高级错误处理
+```lua
+-- 创建一个错误处理器
+local function ErrorHandler(err)
+    print("发生错误: " .. tostring(err))
+    print(debug.traceback())
+    -- 可以在这里添加错误日志记录或上报逻辑
+end
+
+-- 使用xpcall进行更安全的函数调用
+local function SafeExecute(func, ...)
+    return xpcall(func, ErrorHandler, ...)
+end
+
+-- 使用示例
+SafeExecute(function()
+    -- 可能会出错的代码
+    local result = SomeRiskyFunction()
+    -- 处理结果
+end)
+
+-- 创建一个异常类
+local Exception = {}
+Exception.__index = Exception
+
+function Exception.new(message, code)
+    local self = setmetatable({}, Exception)
+    self.message = message
+    self.code = code
+    return self
+end
+
+-- 使用自定义异常
+local function DivideNumbers(a, b)
+    if b == 0 then
+        error(Exception.new("除数不能为零", "DIVIDE_BY_ZERO"))
+    end
+    return a / b
+end
+
+-- 处理自定义异常
+local success, result = pcall(DivideNumbers, 10, 0)
+if not success then
+    if type(result) == "table" and result.code then
+        print("捕获到异常: " .. result.message .. " (代码: " .. result.code .. ")")
+    else
+        print("发生未知错误: " .. tostring(result))
+    end
+end
+```
+
+更多高级错误处理和调试技巧，请查看 [错误处理和调试高级指南](tutorials/advanced_error_handling_and_debugging.md)。
 
 ### 2. 模块化开发
 ```lua
@@ -283,6 +517,27 @@ print("操作耗时: " .. elapsedTime .. " 秒")
 2. 游戏官方MOD API文档
 3. 社区MOD开发论坛
 4. 示例MOD和教程
+
+## 高级教程
+
+为了帮助你进一步提升MOD开发技能，我们提供了以下高级教程：
+
+1. [高级事件处理教程](tutorials/advanced_event_handling.md)
+   - 学习如何处理复杂的事件链
+   - 探索动态事件注册和优先级系统
+   - 掌握全局事件监听技巧
+
+2. [高级UI开发教程](tutorials/advanced_ui_development.md)
+   - 创建响应式和自适应的用户界面
+   - 实现高级UI控件和交互效果
+   - 学习UI性能优化和主题系统开发
+
+3. [高级性能优化指南](tutorials/advanced_performance_optimization.md)
+   - 深入了解内存管理和对象池技术
+   - 学习高效的计算和渲染优化方法
+   - 掌握网络优化和性能监控技巧
+
+这些高级教程将帮助你创建更专业、高效和用户友好的MOD。随着你的技能提升，不要忘记回顾这些教程以获取新的见解。
 
 更多详细信息请参考：
 - [函数接口文档](function_interfaces.md)
