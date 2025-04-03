@@ -1,350 +1,466 @@
-# 类型系统文档
+# UE5LuaModKit 类型系统文档
 
-## 基础类型系统
+本文档详细说明了 UE5LuaModKit 中的类型系统，包括基本类型、复合类型、类型转换和类型安全建议。
 
-### 1. 虚幻引擎原生类型
+## 目录
 
-#### 1.1 基础数据类型
-| 类型名称 | 描述 | Lua中的表示 |
-|---------|------|------------|
-| bool | 布尔值 | boolean |
-| int32 | 32位整数 | number |
-| float | 浮点数 | number |
-| double | 双精度浮点数 | number |
-| FString | 字符串 | string |
-| FName | 名称标识符 | string |
-| FText | 本地化文本 | string |
+1. [基本类型](#基本类型)
+2. [复合类型](#复合类型)
+3. [枚举类型](#枚举类型)
+4. [类型转换](#类型转换)
+5. [类型安全](#类型安全)
+6. [最佳实践](#最佳实践)
 
-#### 1.2 容器类型
-| 类型名称 | 描述 | Lua中的表示 |
-|---------|------|------------|
-| TArray<T> | 动态数组 | table (数组) |
-| TMap<K, V> | 键值映射 | table (字典) |
-| TSet<T> | 唯一元素集合 | table (集合) |
+## 基本类型
 
-#### 1.3 数学类型
-| 类型名称 | 描述 | Lua中的表示 |
-|---------|------|------------|
-| FVector | 3D向量 | table {X=x, Y=y, Z=z} |
-| FRotator | 旋转器 | table {Pitch=p, Yaw=y, Roll=r} |
-| FQuat | 四元数 | table {X=x, Y=y, Z=z, W=w} |
-| FTransform | 变换 | table {Position=vector, Rotation=rotator, Scale=vector} |
+### 数值类型
 
-### 2. 游戏特定类型
+#### Number
+表示所有数值类型。
 
-#### 2.1 角色相关
-| 类型名称 | 描述 | 主要属性 |
-|---------|------|---------|
-| FPalCharacterData | 角色数据 | ID, Level, Stats, Skills |
-| FPalNPCData | NPC数据 | ID, Type, Behavior, Dialog |
-| FPalPlayerData | 玩家数据 | CharacterData, Inventory, Quests |
-
-#### 2.2 战斗相关
-| 类型名称 | 描述 | 主要属性 |
-|---------|------|---------|
-| FPalDamageInfo | 伤害信息 | Amount, Type, Source, Target |
-| FPalCombatStats | 战斗状态 | Health, Stamina, Attack, Defense |
-| FPalSkillData | 技能数据 | ID, Level, Cooldown, Effects |
-
-#### 2.3 物品相关
-| 类型名称 | 描述 | 主要属性 |
-|---------|------|---------|
-| FPalItemData | 物品数据 | ID, Count, Quality, Stats |
-| FPalInventoryData | 背包数据 | Slots, Items, Capacity |
-| FPalEquipmentData | 装备数据 | Slots, EquippedItems |
-
-## 类型转换与处理
-
-### 1. Lua与C++类型转换
-
-#### 1.1 基础类型转换
 ```lua
--- 数值转换
-local intValue = 42          -- Lua number -> C++ int
-local floatValue = 3.14      -- Lua number -> C++ float
-
--- 字符串转换
-local stringValue = "Hello"  -- Lua string -> C++ FString
-
--- 布尔转换
-local boolValue = true       -- Lua boolean -> C++ bool
+local integer = 42          -- 整数
+local float = 3.14          -- 浮点数
+local scientific = 1.2e-10  -- 科学计数法
 ```
 
-#### 1.2 复杂类型转换
+**注意事项**:
+- 内部使用双精度浮点数
+- 整数运算会自动转换为浮点数
+- 建议使用显式的类型转换函数确保精度
+
+### 布尔类型
+
+#### Boolean
+表示逻辑值。
+
 ```lua
--- 向量转换
-local vector = {X=1, Y=2, Z=3}  -- Lua table -> C++ FVector
-
--- 数组转换
-local array = {1, 2, 3, 4, 5}   -- Lua table -> C++ TArray<int32>
-
--- 映射转换
-local map = {key1="value1", key2="value2"}  -- Lua table -> C++ TMap<FString, FString>
+local flag = true
+local enabled = false
 ```
 
-### 2. 类型检查与验证
+### 字符串类型
+
+#### String
+表示文本数据。
 
 ```lua
--- 检查参数类型
-function SafeFunction(param)
-    if type(param) ~= "table" then
-        error("Expected table, got " .. type(param))
-    end
+local name = "Player"
+local description = 'Item description'
+local multiline = [[
+    多行
+    文本
+]]
+```
+
+## 复合类型
+
+### 数组类型
+
+#### Array<T>
+表示同类型元素的有序集合。
+
+```lua
+local numbers = {1, 2, 3, 4, 5}
+local strings = {"a", "b", "c"}
+```
+
+**方法**:
+```lua
+Array.Insert(index, value)   -- 插入元素
+Array.Remove(index)         -- 删除元素
+Array.Find(value)          -- 查找元素
+Array.Sort(comparator)     -- 排序
+Array.Filter(predicate)    -- 过滤
+Array.Map(transform)       -- 转换
+```
+
+### 表类型
+
+#### Table
+表示键值对的集合。
+
+```lua
+local player = {
+    name = "Hero",
+    level = 1,
+    health = 100
+}
+```
+
+### 类类型
+
+#### Class
+表示对象的蓝图。
+
+```lua
+local Character = {
+    -- 静态属性
+    MaxLevel = 100,
     
-    -- 检查表中的字段
-    if not param.X or type(param.X) ~= "number" then
-        error("Expected param.X to be a number")
-    end
+    -- 构造函数
+    new = function(self, name)
+        local instance = {
+            name = name,
+            level = 1,
+            health = 100
+        }
+        setmetatable(instance, {__index = self})
+        return instance
+    end,
     
-    -- 处理参数
-    -- ...
+    -- 方法
+    LevelUp = function(self)
+        if self.level < self.MaxLevel then
+            self.level = self.level + 1
+            return true
+        end
+        return false
+    end
+}
+```
+
+### 函数类型
+
+#### Function
+表示可调用的代码块。
+
+```lua
+-- 函数声明
+local function Add(a: number, b: number): number
+    return a + b
+end
+
+-- 函数类型变量
+local callback: function(sender: string, data: table)
+
+-- 函数类型参数
+local function ProcessEvent(handler: function(event: table))
+    -- 使用函数参数
+    handler({type = "test"})
 end
 ```
 
 ## 枚举类型
 
-### 1. 常用游戏枚举
-
-#### 1.1 EPalDamageType (伤害类型)
-| 枚举值 | 描述 |
-|-------|------|
-| Physical | 物理伤害 |
-| Fire | 火焰伤害 |
-| Water | 水系伤害 |
-| Electric | 电系伤害 |
-| Earth | 土系伤害 |
-| Wind | 风系伤害 |
-| Dark | 暗系伤害 |
-| Light | 光系伤害 |
-
-#### 1.2 EPalCharacterState (角色状态)
-| 枚举值 | 描述 |
-|-------|------|
-| Normal | 正常状态 |
-| Battle | 战斗状态 |
-| Dead | 死亡状态 |
-| Stunned | 眩晕状态 |
-| Sleeping | 睡眠状态 |
-| Poisoned | 中毒状态 |
-| Frozen | 冰冻状态 |
-| Burning | 燃烧状态 |
-
-#### 1.3 EPalWeatherType (天气类型)
-| 枚举值 | 描述 |
-|-------|------|
-| Clear | 晴天 |
-| Cloudy | 多云 |
-| Rain | 雨天 |
-| Storm | 暴风雨 |
-| Snow | 雪天 |
-| Sandstorm | 沙尘暴 |
-| Foggy | 雾天 |
-
-### 2. 在Lua中使用枚举
+### Enum
+表示一组命名的常量值。
 
 ```lua
--- 使用伤害类型枚举
-local damageInfo = {
-    Type = EPalDamageType.Fire,  -- 使用枚举值
-    Amount = 50
+local ItemType = {
+    WEAPON = "weapon",
+    ARMOR = "armor",
+    CONSUMABLE = "consumable",
+    MATERIAL = "material"
 }
 
--- 检查角色状态
-local character = GetPlayer()
-if character:GetState() == EPalCharacterState.Battle then
-    print("玩家正在战斗中!")
-end
-
--- 根据天气类型执行不同操作
-local currentWeather = GetCurrentWeather()
-if currentWeather == EPalWeatherType.Rain then
-    -- 雨天特定逻辑
-    ApplyRainEffects()
-elseif currentWeather == EPalWeatherType.Clear then
-    -- 晴天特定逻辑
-    ApplyClearWeatherEffects()
-end
-```
-
-## 结构体与类
-
-### 1. 常用结构体
-
-#### 1.1 FPalDateTime (游戏内日期时间)
-```lua
--- 创建日期时间
-local gameTime = FPalDateTime.new(2023, 5, 15, 14, 30, 0)  -- 年、月、日、时、分、秒
-
--- 获取当前游戏时间
-local currentTime = GetWorldTime()
-local hour = currentTime:GetHour()
-local isNight = hour >= 20 or hour < 6
-```
-
-#### 1.2 FPalDamageResult (伤害结果)
-```lua
--- 伤害结果结构体
-local damageResult = {
-    ActualDamage = 45,           -- 实际造成的伤害
-    IsCritical = true,           -- 是否暴击
-    AbsorbedAmount = 5,          -- 被吸收的伤害
-    TargetRemainingHealth = 55   -- 目标剩余生命值
+local ItemRarity = {
+    COMMON = 1,
+    UNCOMMON = 2,
+    RARE = 3,
+    EPIC = 4,
+    LEGENDARY = 5
 }
 ```
 
-### 2. 类继承关系
+## 类型转换
 
-#### 2.1 Actor继承体系
-```
-AActor
-  ├── APawn
-  │     ├── ACharacter
-  │           ├── APalCharacter
-  │                 ├── APalPlayerCharacter
-  │                 └── APalNPCCharacter
-  ├── AController
-  │     ├── APlayerController
-  │     └── AAIController
-  │           └── APalAIController
-  └── AItem
-        ├── AWeapon
-        ├── AArmor
-        └── AConsumable
-```
+### 显式转换
 
-#### 2.2 组件继承体系
-```
-UActorComponent
-  ├── USceneComponent
-  │     ├── UPrimitiveComponent
-  │     │     ├── UMeshComponent
-  │     │     │     ├── UStaticMeshComponent
-  │     │     │     └── USkeletalMeshComponent
-  │     └── UCameraComponent
-  ├── UPalCharacterComponent
-  ├── UPalInventoryComponent
-  └── UPalCombatComponent
-```
-
-## 类型安全与最佳实践
-
-### 1. 类型安全编程
-- 始终检查函数参数类型
-- 使用明确的类型转换
-- 避免隐式类型转换导致的错误
-
-### 2. 数据验证
 ```lua
--- 验证数值范围
-function ValidateHealth(health)
-    if type(health) ~= "number" then
-        return 0  -- 默认值
-    end
-    
-    -- 限制范围
-    return math.max(0, math.min(health, 100))
+-- 字符串转数字
+local number = tonumber("42")
+if number then
+    print("转换成功：" .. number)
 end
 
--- 验证复杂对象
-function ValidateCharacterData(data)
-    if type(data) ~= "table" then
-        error("Character data must be a table")
+-- 数字转字符串
+local str = tostring(42)
+
+-- 布尔转换
+local bool = not not value  -- 将任何值转换为布尔值
+```
+
+### 类型检查
+
+```lua
+-- 类型检查函数
+local function CheckType(value, expectedType)
+    local actualType = type(value)
+    if actualType ~= expectedType then
+        error(string.format(
+            "类型错误：期望 %s，实际为 %s",
+            expectedType,
+            actualType
+        ))
+    end
+end
+
+-- 使用示例
+local function ProcessNumber(n)
+    CheckType(n, "number")
+    return n * 2
+end
+```
+
+## 类型安全
+
+### 类型注解
+使用注释提供类型信息。
+
+```lua
+---@class Player
+---@field name string
+---@field level number
+---@field health number
+local Player = {}
+
+---@param damage number
+---@return boolean
+function Player:TakeDamage(damage)
+    self.health = self.health - damage
+    return self.health > 0
+end
+```
+
+### 类型守卫
+使用条件检查确保类型安全。
+
+```lua
+local function ProcessItem(item)
+    -- 类型守卫
+    if type(item) ~= "table" then
+        error("item must be a table")
     end
     
-    -- 检查必要字段
-    local requiredFields = {"ID", "Name", "Level"}
-    for _, field in ipairs(requiredFields) do
-        if data[field] == nil then
-            error("Missing required field: " .. field)
+    if not item.id or type(item.id) ~= "string" then
+        error("item must have a string id")
+    end
+    
+    -- 处理 item
+end
+```
+
+## 最佳实践
+
+### 1. 使用类型注解
+为代码添加类型注解，提高可读性和可维护性。
+
+```lua
+---@class Weapon
+---@field damage number
+---@field durability number
+local Weapon = {}
+
+---@param target Character
+---@return number actual_damage
+function Weapon:Attack(target)
+    local damage = self.damage
+    self.durability = self.durability - 1
+    return damage
+end
+```
+
+### 2. 实现类型检查
+
+```lua
+local TypeChecker = {
+    IsNumber = function(value)
+        return type(value) == "number"
+    end,
+    
+    IsString = function(value)
+        return type(value) == "string"
+    end,
+    
+    IsTable = function(value)
+        return type(value) == "table"
+    end,
+    
+    IsFunction = function(value)
+        return type(value) == "function"
+    end,
+    
+    IsArray = function(value)
+        if not TypeChecker.IsTable(value) then
+            return false
         end
+        local count = 0
+        for _ in pairs(value) do
+            count = count + 1
+            if value[count] == nil then
+                return false
+            end
+        end
+        return true
     end
-    
-    -- 验证数值字段
-    data.Level = math.max(1, math.min(data.Level, 100))
-    
-    return data  -- 返回验证后的数据
+}
+```
+
+### 3. 使用工厂函数创建对象
+
+```lua
+local ItemFactory = {
+    ---@param itemType string
+    ---@param data table
+    ---@return Item
+    CreateItem = function(itemType, data)
+        -- 验证参数
+        assert(ItemType[itemType], "Invalid item type")
+        assert(type(data) == "table", "Data must be a table")
+        
+        -- 创建基础物品
+        local item = {
+            id = data.id or GenerateUUID(),
+            type = itemType,
+            name = data.name or "Unknown Item",
+            description = data.description or "",
+            stackable = data.stackable or false,
+            maxStack = data.maxStack or 1
+        }
+        
+        -- 根据类型添加特定属性
+        if itemType == ItemType.WEAPON then
+            item.damage = data.damage or 0
+            item.range = data.range or 1
+        elseif itemType == ItemType.ARMOR then
+            item.defense = data.defense or 0
+            item.slot = data.slot or "BODY"
+        end
+        
+        return item
+    end
+}
+```
+
+### 4. 使用接口定义
+
+```lua
+---@class IStorage
+---@field GetItem fun(self: IStorage, id: string): Item
+---@field SetItem fun(self: IStorage, id: string, item: Item): boolean
+---@field RemoveItem fun(self: IStorage, id: string): boolean
+local IStorage = {}
+
+-- 实现接口
+---@class Inventory
+---@implements IStorage
+local Inventory = {
+    items = {}
+}
+
+function Inventory:GetItem(id)
+    return self.items[id]
+end
+
+function Inventory:SetItem(id, item)
+    self.items[id] = item
+    return true
+end
+
+function Inventory:RemoveItem(id)
+    if self.items[id] then
+        self.items[id] = nil
+        return true
+    end
+    return false
 end
 ```
 
-### 3. 错误处理
+### 5. 使用泛型
+
 ```lua
--- 使用pcall处理类型错误
-local function SafeCall(func, ...)
-    local success, result = pcall(func, ...)
-    if not success then
-        -- 记录错误
-        LogError("Type error: " .. tostring(result))
-        return nil
+---@generic T
+---@param array T[]
+---@param predicate fun(item: T): boolean
+---@return T[]
+local function Filter(array, predicate)
+    local result = {}
+    for _, item in ipairs(array) do
+        if predicate(item) then
+            table.insert(result, item)
+        end
     end
     return result
 end
 
 -- 使用示例
-local result = SafeCall(function()
-    return ProcessVector({X="not a number", Y=2, Z=3})  -- 会导致类型错误
-end)
+local numbers = {1, 2, 3, 4, 5}
+local evenNumbers = Filter(numbers, function(n) return n % 2 == 0 end)
 ```
 
-## 高级类型技术
+### 6. 错误处理
 
-### 1. 元表与面向对象编程
 ```lua
--- 创建类
-local Character = {}
-Character.__index = Character
+---@class Result
+---@field success boolean
+---@field value any
+---@field error string|nil
+local Result = {}
 
-function Character.new(id, name, level)
-    local self = setmetatable({}, Character)
-    self.ID = id
-    self.Name = name
-    self.Level = level
-    self.Health = 100
-    return self
+function Result.Ok(value)
+    return {success = true, value = value, error = nil}
 end
 
-function Character:TakeDamage(amount)
-    self.Health = math.max(0, self.Health - amount)
-    return self.Health
-end
-
--- 创建实例
-local player = Character.new("player1", "Hero", 10)
-player:TakeDamage(25)
-```
-
-### 2. 泛型编程模拟
-```lua
--- 泛型容器模拟
-local function CreateArray(valueType)
-    local array = {}
-    
-    -- 添加元素，带类型检查
-    function array:Add(value)
-        if type(value) ~= valueType then
-            error("Type mismatch: expected " .. valueType .. ", got " .. type(value))
-        end
-        table.insert(self, value)
-    end
-    
-    -- 其他方法...
-    
-    return array
+function Result.Err(error)
+    return {success = false, value = nil, error = error}
 end
 
 -- 使用示例
-local numberArray = CreateArray("number")
-numberArray:Add(1)  -- 正确
-numberArray:Add(2)  -- 正确
--- numberArray:Add("string")  -- 错误：类型不匹配
+---@param id string
+---@return Result
+local function FindItem(id)
+    if not id then
+        return Result.Err("Invalid ID")
+    end
+    
+    local item = Database.GetItem(id)
+    if not item then
+        return Result.Err("Item not found")
+    end
+    
+    return Result.Ok(item)
+end
+
+-- 处理结果
+local result = FindItem("sword_001")
+if result.success then
+    ProcessItem(result.value)
+else
+    LogError(result.error)
+end
 ```
 
-## 参考资料
+### 7. 常量定义
 
-1. Lua 5.3 参考手册 - 类型与值
-2. 虚幻引擎类型系统文档
-3. 游戏API类型参考
+```lua
+local Constants = {
+    MAX_INVENTORY_SLOTS = 40,
+    MAX_LEVEL = 100,
+    MAX_STAT_VALUE = 999,
+    
+    DAMAGE_TYPES = {
+        PHYSICAL = "physical",
+        MAGICAL = "magical",
+        TRUE = "true"
+    },
+    
+    ITEM_SLOTS = {
+        HEAD = "head",
+        BODY = "body",
+        HANDS = "hands",
+        FEET = "feet",
+        WEAPON_MAIN = "weapon_main",
+        WEAPON_OFF = "weapon_off"
+    }
+}
 
-更多详细信息请参考：
-- [函数接口文档](function_interfaces.md)
-- [数据结构文档](data_structures.md)
-- [Lua MOD开发指南](lua_modding_guide.md)
+-- 冻结常量表防止修改
+setmetatable(Constants, {
+    __newindex = function()
+        error("Attempt to modify read-only table")
+    end
+})
+```
+
+遵循这些最佳实践可以帮助您编写更可靠、可维护的代码，并减少运行时错误。建议在开发过程中始终保持类型安全意识，并适当使用类型系统提供的功能。

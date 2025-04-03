@@ -53,6 +53,35 @@
 2. 查看 [Lua MOD 开发指南](lua_modding_guide.md) 了解基本的 MOD 结构和开发流程，或直接阅读 [详细 Lua MOD 开发指南](detailed_lua_mod_guide.md) 获取更深入的开发知识。
 3. 参考 [数据结构文档](data_structures.md) 和 [函数接口文档](function_interfaces.md) 了解可用的游戏数据和 API。
 4. 使用 [类型系统文档](type_system.md) 确保类型安全和最佳实践。
+5. 浏览 [MOD 开发实例教程](tutorials/mod_examples.md) 获取实际的代码示例和开发灵感。
+6. 查阅 [API 参考文档](api_reference.md) 获取详细的 API 使用说明和示例。
+
+## API 参考
+
+UE5LuaModKit 提供了丰富的 API 以支持各种 MOD 开发需求。我们的 [API 参考文档](api_reference.md) 详细列出了所有可用的函数、类和接口，包括：
+
+- 核心系统 API
+- 游戏对象 API
+- UI 系统 API
+- 物理系统 API
+- 音频系统 API
+- 网络系统 API
+- 工具函数 API
+- 事件系统 API
+
+每个 API 都附有详细的说明、参数列表、返回值说明和使用示例，帮助您快速上手并高效开发。
+
+## 实例教程
+
+为了帮助您更好地理解和应用 UE5LuaModKit，我们提供了一系列实际的 MOD 开发案例。这些案例涵盖了从基础到高级的各种开发场景，包括：
+
+- 基础 MOD 示例（Hello World、简单物品）
+- 中级 MOD 示例（自定义 NPC、自定义任务）
+- 高级 MOD 示例（自定义游戏机制、高级 UI）
+- 工具和辅助函数示例
+- 配置文件示例
+
+详细内容请查看 [MOD 开发实例教程](tutorials/mod_examples.md)。
 
 ## 贡献指南
 
@@ -70,4 +99,4 @@
 - Discord：[Discord 邀请链接]
 - 电子邮件：tian@apiqy.cn
 
-感谢您对我们游戏 MOD 开发的关注！祝您开发愉快！
+感谢您对Loa MOD 开发的关注！祝您开发愉快！
